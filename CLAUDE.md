@@ -47,9 +47,11 @@ python scripts\bridge.py --endpoint 127.0.0.1:8997 ping
 2. Prefer `exec --stdin` for multi-line one-shot scripts.
 3. Use `exec-file` only for scripts that should stay in the repo and be rerun.
 4. Prefer `mb_helpers` before raw `pyfbsdk` for common operations.
-5. Do not delete, save, overwrite, or destructively modify scene data without
+5. Use `mb_fps_helpers` for FPS animation workflows before writing custom rig,
+   pose, locomotion, or retarget scripts.
+6. Do not delete, save, overwrite, or destructively modify scene data without
    explicit user confirmation.
-6. Avoid `time.sleep` and long blocking loops inside one `exec`; it runs in
+7. Avoid `time.sleep` and long blocking loops inside one `exec`; it runs in
    MotionBuilder's main Python/UI context.
 
 ## Helpers
@@ -66,6 +68,18 @@ from mb_helpers import (
     set_playback_time,
     list_takes,
     dump_json,
+)
+
+from mb_fps_helpers import (
+    get_fps_rig_context,
+    suggest_weapon_rig,
+    generate_aim_offset_set,
+    check_aim_offset_smoothness,
+    generate_cover_variants,
+    analyze_locomotion_loop,
+    fix_locomotion_loop,
+    auto_align_weapon_switch,
+    retarget_with_style,
 )
 ```
 

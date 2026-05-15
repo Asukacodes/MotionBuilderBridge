@@ -10,6 +10,7 @@ MotionBuilderBridge consists of:
 
 - `py/mb_bridge_server.py` - in-MotionBuilder TCP server plus UDP discovery
 - `py/mb_helpers.py` - high-level scene/model/selection/skeleton/animation helpers over `pyfbsdk`
+- `py/mb_fps_helpers.py` - FPS animation helpers for weapon rig suggestions, aim offsets, cover poses, locomotion-loop checks, weapon switch planning, and retarget mapping
 - `py/mb_bridge_tool.py` - optional MoBu UI for start/stop/status/smoke-test
 - `scripts/bridge.py` - external CLI client
 - `scripts/start_bridge.py` - script to load inside MotionBuilder
@@ -53,6 +54,12 @@ set_model_transform_key("Probe", 0, translation=[0, 0, 0])
 set_model_transform_key("Probe", 10, translation=[100, 0, 0])
 dump_json(get_property_animation_keys("Probe", "Lcl Translation"))
 '@ | python scripts\bridge.py exec --stdin
+```
+
+Exercise FPS helpers:
+
+```powershell
+python scripts\bridge.py exec "from mb_fps_helpers import suggest_weapon_rig; from mb_helpers import dump_json; dump_json(suggest_weapon_rig('assault_rifle'))"
 ```
 
 Read/write skeleton pose:

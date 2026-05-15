@@ -31,7 +31,7 @@ DEFAULT_DISCOVERY_GROUP = "239.255.43.42"
 DEFAULT_DISCOVERY_PORT = 8997
 DEFAULT_DISCOVERY_TIMEOUT_MS = 800
 MAX_FRAME_BYTES = 10 * 1024 * 1024
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 
 
 @dataclass
@@ -346,13 +346,35 @@ def execute_code(args, code: str, mode: str, src: Optional[str] = None) -> int:
     return 0 if resp.get("success") else 1
 
 
+def read_stdin_script() -> str:
+    """Read stdin robustly on Windows PowerShell and UTF-8 terminals."""
+    raw = sys.stdin.buffer.read() if hasattr(sys.stdin, "buffer") else b""
+    if not raw:
+        return ""
+
+    encodings = ("utf-8-sig", "utf-16", "utf-16-le")
+    for encoding in encodings:
+        try:
+            text = raw.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+        if text and text.count("\x00") <= max(1, len(text) // 20):
+            return text.lstrip("\ufeff")
+
+    preferred = getattr(sys.stdin, "encoding", None) or "utf-8"
+    try:
+        return raw.decode(preferred, errors="replace").lstrip("\ufeff")
+    except LookupError:
+        return raw.decode("utf-8", errors="replace").lstrip("\ufeff")
+
+
 def cmd_exec(args) -> int:
     use_stdin = bool(getattr(args, "stdin", False)) or getattr(args, "code", None) == "-"
     if use_stdin:
         if getattr(args, "code", None) not in (None, "-"):
             print("ERROR: cannot pass both a code argument and --stdin", file=sys.stderr)
             return 2
-        code = sys.stdin.read()
+        code = read_stdin_script()
         if not code.strip():
             print("ERROR: stdin was empty", file=sys.stderr)
             return 2

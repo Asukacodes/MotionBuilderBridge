@@ -141,6 +141,7 @@ MotionBuilderBridge/
     mb_bridge_server.py      # In-MotionBuilder TCP server + discovery responder
     mb_bridge_protocol.py    # Length-prefixed JSON helpers
     mb_helpers.py            # Agent-friendly pyfbsdk wrappers
+    mb_fps_helpers.py        # FPS animation rig/pose/loop helper layer
     mb_bridge_plugin.py      # Loader that auto-starts the bridge
     mb_bridge_tool.py        # Optional MotionBuilder UI control panel
   scripts/
@@ -198,6 +199,37 @@ from mb_helpers import (
     set_model_transform_key,
     dump_json,
 )
+```
+
+FPS animation helpers:
+
+```python
+from mb_fps_helpers import (
+    get_fps_rig_context,
+    suggest_weapon_rig,
+    generate_aim_offset_set,
+    check_aim_offset_smoothness,
+    generate_cover_variants,
+    analyze_locomotion_loop,
+    fix_locomotion_loop,
+    auto_align_weapon_switch,
+    retarget_with_style,
+)
+```
+
+Examples:
+
+```powershell
+python scripts\bridge.py exec "from mb_fps_helpers import suggest_weapon_rig; from mb_helpers import dump_json; dump_json(suggest_weapon_rig('assault_rifle'))"
+```
+
+```powershell
+@'
+from mb_fps_helpers import generate_aim_offset_set, check_aim_offset_smoothness
+from mb_helpers import dump_json
+aim = generate_aim_offset_set(yaw_range=(-45, 45), pitch_range=(-30, 30), granularity=15)
+dump_json(check_aim_offset_smoothness(aim))
+'@ | python scripts\bridge.py exec --stdin
 ```
 
 See `docs/motionbuilder-bridge-api.md` for the current helper surface.

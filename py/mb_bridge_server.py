@@ -422,6 +422,12 @@ class MBServer(object):
         except Exception:
             pass
 
+        try:
+            import mb_fps_helpers
+            namespace["mb_fps_helpers"] = mb_fps_helpers
+        except Exception:
+            pass
+
         return namespace
 
     def _project_name(self):

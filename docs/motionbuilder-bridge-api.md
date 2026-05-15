@@ -153,6 +153,128 @@ Animation key output is grouped by channels:
 }
 ```
 
+## FPS Animation Helpers
+
+FPS helpers live in `mb_fps_helpers`. They are designed for agent workflows
+around weapon rigs, aim offsets, cover poses, locomotion cycles, weapon-switch
+alignment, and retarget planning.
+
+```python
+from mb_fps_helpers import (
+    get_fps_rig_context,
+    suggest_weapon_rig,
+    generate_aim_offset_set,
+    check_aim_offset_smoothness,
+    generate_cover_variants,
+    analyze_locomotion_loop,
+    fix_locomotion_loop,
+    auto_align_weapon_switch,
+    retarget_with_style,
+)
+```
+
+### Weapon Rig Suggestions
+
+```python
+suggest_weapon_rig(
+    weapon_type="assault_rifle",
+    character_name=None,
+    weapon_model=None,
+    create_markers=False,
+)
+```
+
+Returns recommended right/left hand IK target transforms, source hand/weapon
+data, grip-pose offsets, and suggested constraints. If `create_markers=True`,
+the helper creates or updates two `FBModelNull` markers named
+`FPS_RightHandIK` and `FPS_LeftHandIK`.
+
+Read-only example:
+
+```powershell
+python scripts\bridge.py exec "from mb_fps_helpers import suggest_weapon_rig; from mb_helpers import dump_json; dump_json(suggest_weapon_rig('assault_rifle'))"
+```
+
+### Aim Offset Pose Sets
+
+```python
+generate_aim_offset_set(
+    base_pose=None,
+    yaw_range=(-45, 45),
+    pitch_range=(-30, 30),
+    granularity=15,
+    apply=False,
+)
+```
+
+Generates a yaw/pitch grid by distributing rotation across spine, neck, and
+head. It returns pose dictionaries compatible with `set_skeleton_pose`.
+`apply=False` is read-only. With `apply=True`, poses are keyed into the current
+take starting at `start_frame`.
+
+Smoothness check:
+
+```python
+aim = generate_aim_offset_set(granularity=15)
+report = check_aim_offset_smoothness(aim, max_rotation_delta=20.0)
+```
+
+### Cover Pose Variants
+
+```python
+generate_cover_variants(
+    reference_pose=None,
+    cover_types=["left_peek", "right_peek", "crouch", "prone"],
+    apply=False,
+)
+```
+
+Known cover types are `left_peek`, `right_peek`, `crouch`, `prone`,
+`left_blind_fire`, and `right_blind_fire`. The result is intended as blocking
+poses for artist review and polish.
+
+### Locomotion Loop Checks
+
+```python
+analyze_locomotion_loop(
+    root_name=None,
+    start_frame=None,
+    end_frame=None,
+    in_place=True,
+)
+```
+
+Reports endpoint pose seams and simple foot-slide candidates. When
+`start_frame` / `end_frame` are omitted, the current playback loop range is
+used; if no useful range exists, it checks a 30-frame window.
+
+```python
+fix_locomotion_loop(..., apply=False)
+```
+
+With `apply=False`, this only returns analysis. With `apply=True`, it keys the
+start pose onto the end frame as a conservative loop endpoint patch.
+
+### Weapon Switch And Retarget Planning
+
+```python
+auto_align_weapon_switch(
+    weapon_anim,
+    character_anim,
+    sync_points=["draw", "holster"],
+)
+```
+
+Builds a frame-offset plan from sync-point dictionaries.
+
+```python
+retarget_with_style(source_anim, source_skeleton, target_skeleton)
+```
+
+Returns a name-normalized bone map, estimated scale ratio, and style-preserving
+retarget policy. Use it as an agent-side planning step before applying HumanIK
+or manual curve edits.
+
 ## Playback And Takes
 
 ```python
