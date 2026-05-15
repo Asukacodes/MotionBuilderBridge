@@ -1,6 +1,8 @@
 param(
     [string]$BridgeHome = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path,
     [string]$MotionBuilderVersion = "2024",
+    [ValidateSet("User", "System", "All")]
+    [string]$Scope = "User",
     [switch]$AutoStartBridge,
     [switch]$OpenPanel
 )
@@ -12,12 +14,32 @@ if (-not (Test-Path -LiteralPath (Join-Path $BridgeHome "py\mb_bridge_server.py"
     throw "BridgeHome does not look like MotionBuilderBridge: $BridgeHome"
 }
 
-$startupDir = Join-Path ${env:ProgramFiles} "Autodesk\MotionBuilder $MotionBuilderVersion\bin\config\PythonStartup"
-if (-not (Test-Path -LiteralPath $startupDir)) {
-    throw "MotionBuilder PythonStartup folder not found: $startupDir"
+function Get-StartupTargets {
+    param(
+        [string]$Version,
+        [string]$TargetScope
+    )
+
+    $targets = @()
+    if ($TargetScope -in @("User", "All")) {
+        $targets += [PSCustomObject]@{
+            Scope = "User"
+            Path = Join-Path $env:USERPROFILE "Documents\MB\$Version\config\PythonStartup"
+            RequiresAdmin = $false
+        }
+    }
+
+    if ($TargetScope -in @("System", "All")) {
+        $targets += [PSCustomObject]@{
+            Scope = "System"
+            Path = Join-Path ${env:ProgramFiles} "Autodesk\MotionBuilder $Version\bin\config\PythonStartup"
+            RequiresAdmin = $true
+        }
+    }
+
+    return $targets
 }
 
-$loader = Join-Path $startupDir "MotionBuilderBridge_startup.py"
 $bridgeHomePy = $BridgeHome.Replace("\", "/")
 
 $lines = @(
@@ -44,8 +66,30 @@ if ($OpenPanel) {
     )
 }
 
-Set-Content -LiteralPath $loader -Value ($lines -join [Environment]::NewLine) -Encoding UTF8
-Write-Host "Installed MotionBuilder startup loader: $loader"
+$installed = @()
+foreach ($target in Get-StartupTargets -Version $MotionBuilderVersion -TargetScope $Scope) {
+    if (-not (Test-Path -LiteralPath $target.Path)) {
+        New-Item -ItemType Directory -Force -Path $target.Path | Out-Null
+    }
+
+    $loader = Join-Path $target.Path "MotionBuilderBridge_startup.py"
+    try {
+        Set-Content -LiteralPath $loader -Value ($lines -join [Environment]::NewLine) -Encoding UTF8
+        $installed += $loader
+        Write-Host "Installed MotionBuilder startup loader [$($target.Scope)]: $loader"
+    } catch [System.UnauthorizedAccessException] {
+        if ($target.RequiresAdmin) {
+            Write-Warning "Could not write system startup loader because administrator permission is required: $loader"
+            Write-Warning "Re-run PowerShell as Administrator, or use -Scope User."
+        } else {
+            throw
+        }
+    }
+}
+
+if (-not $installed) {
+    throw "No startup loaders were installed."
+}
 
 if (-not $AutoStartBridge -and -not $OpenPanel) {
     Write-Host "Loader only adds MotionBuilderBridge to sys.path. Re-run with -AutoStartBridge and/or -OpenPanel for automatic startup."

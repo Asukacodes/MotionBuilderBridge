@@ -52,23 +52,33 @@ reloaded.
 Optional:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\install_mobu_startup.ps1 -MotionBuilderVersion 2024 -AutoStartBridge -OpenPanel
+powershell -ExecutionPolicy Bypass -File tools\install_mobu_startup.ps1 -MotionBuilderVersion 2024 -Scope User -AutoStartBridge -OpenPanel
 ```
 
 This writes:
 
 ```text
-C:\Program Files\Autodesk\MotionBuilder 2024\bin\config\PythonStartup\MotionBuilderBridge_startup.py
+C:\Users\<user>\Documents\MB\2024\config\PythonStartup\MotionBuilderBridge_startup.py
 ```
 
 Flags:
 
 | Flag | Effect |
 |---|---|
+| `-Scope User` | Install to the current user's MotionBuilder startup folder; default and does not require admin |
+| `-Scope System` | Install to `Program Files`; usually requires admin |
+| `-Scope All` | Install both user and system startup loaders |
 | `-AutoStartBridge` | Start TCP bridge automatically when MotionBuilder starts |
 | `-OpenPanel` | Open the MotionBuilderBridge control panel automatically |
 
-If Program Files requires admin rights, run PowerShell as Administrator.
+For system-wide installation:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\install_mobu_startup.ps1 -MotionBuilderVersion 2024 -Scope System -AutoStartBridge -OpenPanel
+```
+
+If Program Files requires admin rights, run PowerShell as Administrator or use
+the default `-Scope User`.
 
 ## Manual MotionBuilder Load
 

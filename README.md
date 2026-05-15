@@ -18,7 +18,16 @@ It mirrors the useful parts of UnrealBridge:
 
 ### 1. Start the bridge in MotionBuilder
 
-Open MotionBuilder's Python Shell and run:
+Recommended: install the user-level startup loader once:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\install_mobu_startup.ps1 -MotionBuilderVersion 2024 -Scope User -AutoStartBridge -OpenPanel
+```
+
+After that, MotionBuilder starts the bridge automatically on launch and opens
+the control panel. No administrator rights are required for `-Scope User`.
+
+Manual fallback: open MotionBuilder's Python Shell and run:
 
 ```python
 exec(open(r"D:/LAFAN/MotionBuilderBridge/scripts/start_bridge.py").read())
@@ -172,7 +181,7 @@ powershell -ExecutionPolicy Bypass -File tools\install_agent_skill.ps1 -Target B
 Optional MotionBuilder auto-start/control-panel loader:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\install_mobu_startup.ps1 -MotionBuilderVersion 2024 -AutoStartBridge -OpenPanel
+powershell -ExecutionPolicy Bypass -File tools\install_mobu_startup.ps1 -MotionBuilderVersion 2024 -Scope User -AutoStartBridge -OpenPanel
 ```
 
 See `docs/packaging.md` for the full distribution flow.
