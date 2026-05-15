@@ -22,6 +22,19 @@ function Get-StartupTargets {
 
     $targets = @()
     if ($TargetScope -in @("User", "All")) {
+        $documents = [Environment]::GetFolderPath("MyDocuments")
+        if ($documents) {
+            $targets += [PSCustomObject]@{
+                Scope = "UserKnownDocumentsVersioned"
+                Path = Join-Path $documents "MB\$Version\config\PythonStartup"
+                RequiresAdmin = $false
+            }
+            $targets += [PSCustomObject]@{
+                Scope = "UserKnownDocumentsGlobal"
+                Path = Join-Path $documents "MB\PythonStartup"
+                RequiresAdmin = $false
+            }
+        }
         $targets += [PSCustomObject]@{
             Scope = "UserDocumentsVersioned"
             Path = Join-Path $env:USERPROFILE "Documents\MB\$Version\config\PythonStartup"
@@ -37,6 +50,11 @@ function Get-StartupTargets {
             Path = Join-Path $env:USERPROFILE "Documents\MB\PythonStartup"
             RequiresAdmin = $false
         }
+        $targets += [PSCustomObject]@{
+            Scope = "UserEnvStartup"
+            Path = Join-Path $BridgeHome "Saved\MotionBuilderBridge\PythonStartup"
+            RequiresAdmin = $false
+        }
     }
 
     if ($TargetScope -in @("System", "All")) {
@@ -47,7 +65,44 @@ function Get-StartupTargets {
         }
     }
 
-    return $targets
+    $unique = @()
+    $seen = @{}
+    foreach ($target in $targets) {
+        $fullPath = [System.IO.Path]::GetFullPath($target.Path)
+        $key = $fullPath.ToLowerInvariant()
+        if (-not $seen.ContainsKey($key)) {
+            $seen[$key] = $true
+            $target.Path = $fullPath
+            $unique += $target
+        }
+    }
+
+    return $unique
+}
+
+function Add-UserStartupEnvPath {
+    param([string]$Path)
+
+    $fullPath = [System.IO.Path]::GetFullPath($Path)
+    $existing = [Environment]::GetEnvironmentVariable("MOTIONBUILDER_PYTHON_STARTUP", "User")
+    $parts = @()
+    if ($existing) {
+        $parts += $existing -split ';' | Where-Object { $_ -and $_.Trim() }
+    }
+    $already = $false
+    foreach ($part in $parts) {
+        if ([System.IO.Path]::GetFullPath($part).TrimEnd('\') -ieq $fullPath.TrimEnd('\')) {
+            $already = $true
+            break
+        }
+    }
+    if (-not $already) {
+        $parts += $fullPath
+    }
+    $value = ($parts | Select-Object -Unique) -join ';'
+    [Environment]::SetEnvironmentVariable("MOTIONBUILDER_PYTHON_STARTUP", $value, "User")
+    $env:MOTIONBUILDER_PYTHON_STARTUP = $value
+    Write-Host "Set user MOTIONBUILDER_PYTHON_STARTUP=$value"
 }
 
 $bridgeHomePy = $BridgeHome.Replace("\", "/")
@@ -98,6 +153,10 @@ foreach ($target in Get-StartupTargets -Version $MotionBuilderVersion -TargetSco
 
 if (-not $installed) {
     throw "No startup loaders were installed."
+}
+
+if ($Scope -in @("User", "All")) {
+    Add-UserStartupEnvPath -Path (Join-Path $BridgeHome "Saved\MotionBuilderBridge\PythonStartup")
 }
 
 if (-not $AutoStartBridge -and -not $OpenPanel) {

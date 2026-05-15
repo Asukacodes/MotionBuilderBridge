@@ -59,10 +59,18 @@ This writes user startup loaders to the common MotionBuilder user startup
 locations:
 
 ```text
+C:\Users\<user>\OneDrive\文档\MB\2024\config\PythonStartup\MotionBuilderBridge_startup.py
+C:\Users\<user>\OneDrive\文档\MB\PythonStartup\MotionBuilderBridge_startup.py
 C:\Users\<user>\Documents\MB\2024\config\PythonStartup\MotionBuilderBridge_startup.py
 C:\Users\<user>\AppData\Roaming\Autodesk\MotionBuilder\config\PythonStartup\MotionBuilderBridge_startup.py
 C:\Users\<user>\Documents\MB\PythonStartup\MotionBuilderBridge_startup.py
+<BridgeHome>\Saved\MotionBuilderBridge\PythonStartup\MotionBuilderBridge_startup.py
 ```
+
+It also appends `<BridgeHome>\Saved\MotionBuilderBridge\PythonStartup` to the
+user `MOTIONBUILDER_PYTHON_STARTUP` environment variable. This covers machines
+where MotionBuilder resolves the user Documents folder through OneDrive or a
+localized path.
 
 Flags:
 
