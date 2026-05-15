@@ -32,8 +32,15 @@ TOOL_NAME = "MotionBuilderBridge Control Panel"
 _STATE = {}
 
 
-def show_tool():
-    """Create and show the MotionBuilderBridge control panel."""
+def register_tool(auto_start=False, show=False):
+    """Create/register the control panel so it appears in Python Tools."""
+    if auto_start and not _server_running():
+        mb_bridge_server.start_bridge()
+    return show_tool(show=show)
+
+
+def show_tool(show=True):
+    """Create and optionally show the MotionBuilderBridge control panel."""
     tool = ui.FBCreateUniqueTool(TOOL_NAME)
     tool.StartSizeX = 620
     tool.StartSizeY = 430
@@ -102,7 +109,8 @@ def show_tool():
 
     _refresh_status()
     _log("Control panel loaded.")
-    fb.ShowTool(tool)
+    if show:
+        fb.ShowTool(tool)
     return tool
 
 

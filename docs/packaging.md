@@ -71,6 +71,10 @@ Flags:
 | `-AutoStartBridge` | Start TCP bridge automatically when MotionBuilder starts |
 | `-OpenPanel` | Open the MotionBuilderBridge control panel automatically |
 
+The startup loader always registers `MotionBuilderBridge Control Panel` as a
+Python Tool, so it appears under MotionBuilder's `Python Tools` menu after
+startup. `-OpenPanel` only controls whether the panel is shown immediately.
+
 For system-wide installation:
 
 ```powershell

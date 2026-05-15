@@ -24,8 +24,9 @@ Recommended: install the user-level startup loader once:
 powershell -ExecutionPolicy Bypass -File tools\install_mobu_startup.ps1 -MotionBuilderVersion 2024 -Scope User -AutoStartBridge -OpenPanel
 ```
 
-After that, MotionBuilder starts the bridge automatically on launch and opens
-the control panel. No administrator rights are required for `-Scope User`.
+After that, MotionBuilder starts the bridge automatically on launch, registers
+`MotionBuilderBridge Control Panel` under `Python Tools`, and opens the control
+panel. No administrator rights are required for `-Scope User`.
 
 Manual fallback: open MotionBuilder's Python Shell and run:
 

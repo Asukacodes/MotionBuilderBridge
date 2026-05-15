@@ -59,12 +59,11 @@ if ($AutoStartBridge) {
     )
 }
 
-if ($OpenPanel) {
-    $lines += @(
-        "import mb_bridge_tool",
-        "mb_bridge_tool.show_tool()"
-    )
-}
+$showPanel = if ($OpenPanel) { "True" } else { "False" }
+$lines += @(
+    "import mb_bridge_tool",
+    "mb_bridge_tool.register_tool(auto_start=False, show=$showPanel)"
+)
 
 $installed = @()
 foreach ($target in Get-StartupTargets -Version $MotionBuilderVersion -TargetScope $Scope) {
