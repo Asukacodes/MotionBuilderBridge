@@ -30,8 +30,9 @@ DEFAULT_TIMEOUT = 30.0
 DEFAULT_DISCOVERY_GROUP = "239.255.43.42"
 DEFAULT_DISCOVERY_PORT = 8997
 DEFAULT_DISCOVERY_TIMEOUT_MS = 800
+DEFAULT_PING_WAIT = 5.0
 MAX_FRAME_BYTES = 10 * 1024 * 1024
-VERSION = "0.3.1"
+VERSION = "0.3.2"
 
 
 @dataclass
@@ -406,21 +407,35 @@ def resolve_target(args) -> Tuple[str, int, Optional[str], Optional[Endpoint]]:
 
 
 def cmd_ping(args) -> int:
-    try:
-        host, port, token, _ep = resolve_target(args)
-        resp = send_request(
-            host,
-            port,
-            {"id": str(uuid.uuid4()), "command": "ping"},
-            timeout=float(getattr(args, "timeout", DEFAULT_TIMEOUT)),
-            token=token,
-        )
-    except Exception as exc:
-        if getattr(args, "json", False):
-            print(json.dumps({"success": False, "error": str(exc)}, ensure_ascii=False))
-        else:
-            print("ERROR: %s" % exc, file=sys.stderr)
-        return 1
+    wait_s = float(
+        getattr(args, "wait", None)
+        or os.environ.get("MB_BRIDGE_PING_WAIT", DEFAULT_PING_WAIT)
+    )
+    deadline = time.monotonic() + max(0.0, wait_s)
+    last_exc = None
+
+    while True:
+        if last_exc is not None:
+            time.sleep(0.25)
+
+        try:
+            host, port, token, _ep = resolve_target(args)
+            resp = send_request(
+                host,
+                port,
+                {"id": str(uuid.uuid4()), "command": "ping"},
+                timeout=float(getattr(args, "timeout", DEFAULT_TIMEOUT)),
+                token=token,
+            )
+            break
+        except Exception as exc:
+            last_exc = exc
+            if time.monotonic() >= deadline:
+                if getattr(args, "json", False):
+                    print(json.dumps({"success": False, "error": str(exc)}, ensure_ascii=False))
+                else:
+                    print("ERROR: %s" % exc, file=sys.stderr)
+                return 1
 
     if getattr(args, "json", False):
         print(json.dumps(resp, ensure_ascii=False))
@@ -430,7 +445,6 @@ def cmd_ping(args) -> int:
         print("ERROR: %s" % (resp.get("error") or resp), file=sys.stderr)
         return 1
     return 0 if resp.get("success") else 1
-
 
 def execute_code(args, code: str, mode: str, src: Optional[str] = None) -> int:
     try:
@@ -610,6 +624,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     ping = sub.add_parser("ping", help="Check bridge connectivity")
     add_common_args(ping, suppress_defaults=True)
+    ping.add_argument("--wait", type=float, default=argparse.SUPPRESS,
+                      help="Wait up to N seconds for autostart/discovery/cache.")
 
     stop = sub.add_parser("stop", help="Ask the in-editor bridge to stop")
     add_common_args(stop, suppress_defaults=True)
