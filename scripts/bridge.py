@@ -31,7 +31,7 @@ DEFAULT_DISCOVERY_GROUP = "239.255.43.42"
 DEFAULT_DISCOVERY_PORT = 8997
 DEFAULT_DISCOVERY_TIMEOUT_MS = 800
 MAX_FRAME_BYTES = 10 * 1024 * 1024
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 
 
 @dataclass
@@ -92,6 +92,32 @@ def parse_group(value: str) -> Tuple[str, int]:
         host, port_s = value.rsplit(":", 1)
         return host, int(port_s)
     return value, DEFAULT_DISCOVERY_PORT
+
+
+def repo_root() -> str:
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def endpoint_cache_paths() -> List[str]:
+    paths = []
+    env_path = os.environ.get("MB_BRIDGE_ENDPOINT_CACHE")
+    if env_path:
+        paths.append(os.path.abspath(os.path.expanduser(env_path)))
+
+    paths.append(os.path.join(repo_root(), "Saved", "MotionBuilderBridge", "endpoint.json"))
+
+    local_appdata = os.environ.get("LOCALAPPDATA")
+    if local_appdata:
+        paths.append(os.path.join(local_appdata, "MotionBuilderBridge", "endpoint.json"))
+
+    unique = []
+    seen = set()
+    for path in paths:
+        norm = os.path.normcase(os.path.abspath(path))
+        if norm not in seen:
+            seen.add(norm)
+            unique.append(path)
+    return unique
 
 
 def encode_frame(data: dict) -> bytes:
@@ -224,6 +250,87 @@ def select_endpoint(endpoints: List[Endpoint],
     )
 
 
+def endpoint_from_cache_file(path: str) -> Optional[Endpoint]:
+    try:
+        with open(path, "r", encoding="utf-8-sig") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return None
+
+    if data.get("app") not in ("motionbuilder", None):
+        return None
+    try:
+        port = int(data.get("tcp_port", 0))
+    except (TypeError, ValueError):
+        return None
+    if port <= 0:
+        return None
+
+    return Endpoint(
+        pid=int(data.get("pid", 0) or 0),
+        project=str(data.get("project", "MotionBuilder")),
+        project_path=str(data.get("project_path", "")),
+        engine_version=str(data.get("engine_version", "")),
+        tcp_bind=str(data.get("tcp_bind", "127.0.0.1")),
+        tcp_port=port,
+        token_fingerprint=str(data.get("token_fingerprint", "")),
+        token_path=str(data.get("token_path", "")),
+    )
+
+
+def cached_endpoints(project_filter: str = "*") -> List[Endpoint]:
+    endpoints = []
+    seen = set()
+    for path in endpoint_cache_paths():
+        ep = endpoint_from_cache_file(path)
+        if ep is None:
+            continue
+        if not matches_project(ep, project_filter):
+            continue
+        key = (ep.host, ep.port)
+        if key in seen:
+            continue
+        seen.add(key)
+        endpoints.append(ep)
+    return endpoints
+
+
+def is_endpoint_alive(ep: Endpoint, token: Optional[str], timeout: float = 1.5) -> bool:
+    try:
+        resp = send_request(
+            ep.host,
+            ep.port,
+            {"id": str(uuid.uuid4()), "command": "ping"},
+            timeout=timeout,
+            token=token,
+        )
+    except Exception:
+        return False
+    return bool(resp.get("success"))
+
+
+def select_cached_endpoint(project_filter: str, explicit_token: Optional[str]) -> Endpoint:
+    errors = []
+    for ep in cached_endpoints(project_filter=project_filter):
+        try:
+            token = load_token(ep, explicit_token)
+        except Exception as exc:
+            errors.append("%s: %s" % (ep, exc))
+            continue
+        if is_endpoint_alive(ep, token):
+            return ep
+        errors.append("%s: not responding" % ep)
+
+    detail = ""
+    if errors:
+        detail = " Cached endpoint candidates were stale or invalid:\n  %s" % "\n  ".join(errors)
+    raise DiscoveryError(
+        "no MotionBuilderBridge instance found by discovery or endpoint cache."
+        "%s Start MotionBuilder with MotionBuilderBridge autostart enabled, or pass "
+        "--endpoint=127.0.0.1:<port>." % detail
+    )
+
+
 def token_fingerprint(token: str) -> str:
     return hashlib.sha1(token.encode("utf-8")).hexdigest()[:16]
 
@@ -279,9 +386,22 @@ def resolve_target(args) -> Tuple[str, int, Optional[str], Optional[Endpoint]]:
         or "*"
     )
 
-    endpoints = discover(project_filter=project_filter, group=group,
-                         group_port=group_port, timeout_ms=timeout_ms)
-    ep = select_endpoint(endpoints, project_filter=project_filter)
+    endpoints = []
+    discovery_error = None
+    try:
+        endpoints = discover(project_filter=project_filter, group=group,
+                             group_port=group_port, timeout_ms=timeout_ms)
+    except OSError as exc:
+        discovery_error = exc
+
+    if endpoints:
+        ep = select_endpoint(endpoints, project_filter=project_filter)
+    elif os.environ.get("MB_BRIDGE_DISABLE_CACHE", "") in ("1", "true", "True", "yes"):
+        if discovery_error:
+            raise DiscoveryError("discovery failed and endpoint cache is disabled: %s" % discovery_error)
+        ep = select_endpoint(endpoints, project_filter=project_filter)
+    else:
+        ep = select_cached_endpoint(project_filter, explicit_token)
     return ep.host, ep.port, load_token(ep, explicit_token), ep
 
 

@@ -8,7 +8,8 @@ allowed-tools: Bash Read Write Edit Glob Grep
 
 Execute Python inside a running MotionBuilder session. The server is loaded into
 MotionBuilder and the CLI auto-discovers it over UDP multicast
-`239.255.43.42:8997`.
+`239.255.43.42:8997`. If UDP discovery fails, the CLI automatically falls back
+to the endpoint cache written by the MotionBuilder server.
 
 ## Preconditions
 
@@ -27,8 +28,8 @@ If `bridge.py ping` cannot find an instance, check these in order:
    exec(open(r"D:/LAFAN/MotionBuilderBridge/py/mb_bridge_tool.py").read())
    ```
 
-4. Discovery is not blocked. If needed, use `--endpoint=127.0.0.1:<port>` with
-   the port printed by `[MBBridge] listening on ...`.
+4. Discovery/cache is not blocked. If needed, use `--endpoint=127.0.0.1:<port>`
+   with the port printed by `[MBBridge] listening on ...`.
 
 ## Bridge CLI
 
@@ -47,6 +48,14 @@ python "${CLAUDE_SKILL_DIR}/scripts/bridge.py" [options] <command> [args]
 
 Useful flags: `--endpoint=host:port`, `--project=<name|path>`,
 `--token=<secret>`, `--timeout=<seconds>`, `--json`.
+
+Endpoint cache fallback reads:
+
+- `<MotionBuilderBridge>/Saved/MotionBuilderBridge/endpoint.json`
+- `%LOCALAPPDATA%/MotionBuilderBridge/endpoint.json`
+
+Do not ask the user for the printed port unless both discovery and endpoint
+cache fallback fail.
 
 ## Workflow
 

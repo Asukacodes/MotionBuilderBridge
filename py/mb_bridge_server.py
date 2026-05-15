@@ -24,6 +24,7 @@ import secrets
 import socket
 import struct
 import sys
+import time
 import traceback
 from typing import Optional
 
@@ -53,6 +54,7 @@ TOKEN_DIR = os.path.abspath(
     os.path.join(_MODULE_DIR, "..", "Saved", "MotionBuilderBridge")
 )
 TOKEN_FILE = os.path.join(TOKEN_DIR, "token.txt")
+ENDPOINT_FILE = os.path.join(TOKEN_DIR, "endpoint.json")
 
 
 def _require_motionbuilder():
@@ -79,6 +81,24 @@ def _token_fingerprint(token):
     if not token:
         return ""
     return hashlib.sha1(token.encode("utf-8")).hexdigest()[:16]
+
+
+def _endpoint_cache_files():
+    files = [ENDPOINT_FILE]
+    local_appdata = os.environ.get("LOCALAPPDATA", "")
+    if local_appdata:
+        files.append(
+            os.path.join(local_appdata, "MotionBuilderBridge", "endpoint.json")
+        )
+
+    unique = []
+    seen = set()
+    for path in files:
+        norm = os.path.normcase(os.path.abspath(path))
+        if norm not in seen:
+            seen.add(norm)
+            unique.append(path)
+    return unique
 
 
 class MBServer(object):
@@ -108,6 +128,7 @@ class MBServer(object):
         self._idle_callback = None
         self._globals = self._make_exec_globals()
         self.token_file = ""
+        self.endpoint_files = []
 
     def start(self):
         if self._running:
@@ -121,6 +142,7 @@ class MBServer(object):
         self._idle_callback = self._on_idle
         fb.FBSystem().OnUIIdle.Add(self._idle_callback)
         self._running = True
+        self._write_endpoint_files()
 
         print("[MBBridge] listening on %s:%s" % (self.host, self.port))
         if self.discovery_enabled and self._discovery_sock is not None:
@@ -153,6 +175,7 @@ class MBServer(object):
         if self._running:
             print("[MBBridge] stopped")
         self._running = False
+        self._remove_endpoint_files()
 
     def _ensure_token_policy(self):
         if self.token:
@@ -178,6 +201,46 @@ class MBServer(object):
             self.token_file = TOKEN_FILE
         except Exception as exc:
             print("[MBBridge] warning: could not write token file: %s" % exc)
+
+    def _write_endpoint_files(self):
+        payload = {
+            "v": 1,
+            "app": "motionbuilder",
+            "pid": os.getpid(),
+            "project": self._project_name(),
+            "project_path": self._scene_path(),
+            "engine_version": self._motionbuilder_version(),
+            "tcp_bind": self.host,
+            "tcp_port": self.port,
+            "endpoint": "%s:%s" % (self.host, self.port),
+            "discovery_group": self.discovery_group,
+            "discovery_port": self.discovery_port,
+            "token_fingerprint": _token_fingerprint(self.token),
+            "token_path": self.token_file,
+            "updated_at": time.time(),
+        }
+
+        written = []
+        for path in _endpoint_cache_files():
+            try:
+                folder = os.path.dirname(path)
+                if folder and not os.path.isdir(folder):
+                    os.makedirs(folder)
+                with open(path, "w", encoding="utf-8") as f:
+                    json.dump(payload, f, ensure_ascii=False, indent=2)
+                written.append(path)
+            except Exception as exc:
+                print("[MBBridge] warning: could not write endpoint cache %s: %s" % (path, exc))
+        self.endpoint_files = written
+
+    def _remove_endpoint_files(self):
+        for path in self.endpoint_files or _endpoint_cache_files():
+            try:
+                if os.path.isfile(path):
+                    os.remove(path)
+            except Exception:
+                pass
+        self.endpoint_files = []
 
     def _start_tcp(self):
         srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

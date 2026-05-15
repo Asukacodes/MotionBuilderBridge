@@ -6,7 +6,8 @@ Python inside Autodesk MotionBuilder through `pyfbsdk`.
 It mirrors the useful parts of UnrealBridge:
 
 - length-prefixed JSON over TCP
-- UDP multicast discovery, so the TCP port does not need to be hardcoded
+- UDP multicast discovery plus endpoint-cache fallback, so the TCP port does
+  not need to be hardcoded
 - optional token auth for non-loopback binds
 - persistent in-application Python namespace
 - stdout/stderr capture per execution
@@ -51,6 +52,8 @@ Expected log:
 ```
 
 The TCP port is OS-assigned by default. Clients discover it through UDP.
+The server also writes a local endpoint cache at startup, so clients can still
+find the current port when UDP multicast is delayed or blocked.
 
 For a fixed TCP port:
 
@@ -114,6 +117,16 @@ Probe:    {"v":1,"type":"probe","request_id":"...","filter":{"project":"*"}}
 Response: {"v":1,"type":"response","app":"motionbuilder","tcp_bind":"127.0.0.1","tcp_port":...}
 ```
 
+At startup the server also writes endpoint cache files:
+
+```text
+D:\LAFAN\MotionBuilderBridge\Saved\MotionBuilderBridge\endpoint.json
+%LOCALAPPDATA%\MotionBuilderBridge\endpoint.json
+```
+
+The CLI tries UDP discovery first, then automatically validates and uses the
+cached endpoint. Set `MB_BRIDGE_DISABLE_CACHE=1` to disable that fallback.
+
 ## Configuration
 
 Server configuration precedence is explicit `start_bridge(...)` argument, then
@@ -142,6 +155,8 @@ Client overrides:
 | `--project NAME_OR_PATH` / `MB_BRIDGE_PROJECT` | Select one discovered instance |
 | `--token TOKEN` / `MB_BRIDGE_TOKEN` | Auth token |
 | `--discovery-group HOST:PORT` / `MB_BRIDGE_DISCOVERY_GROUP` | Override multicast group |
+| `MB_BRIDGE_ENDPOINT_CACHE` | Override endpoint cache file path |
+| `MB_BRIDGE_DISABLE_CACHE=1` | Disable endpoint-cache fallback |
 
 ## Project Layout
 

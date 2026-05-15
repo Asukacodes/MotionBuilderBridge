@@ -107,6 +107,15 @@ python scripts\bridge.py ping
 python scripts\bridge.py exec "from mb_helpers import get_scene_info, dump_json; dump_json(get_scene_info())"
 ```
 
+`bridge.py ping` first tries UDP discovery. If multicast discovery is delayed
+or blocked, it automatically falls back to the endpoint cache written by the
+in-MotionBuilder server:
+
+```text
+Saved\MotionBuilderBridge\endpoint.json
+%LOCALAPPDATA%\MotionBuilderBridge\endpoint.json
+```
+
 From an installed Claude/Codex skill, the wrapper command is:
 
 ```powershell
