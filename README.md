@@ -27,7 +27,9 @@ powershell -ExecutionPolicy Bypass -File tools\install_mobu_startup.ps1 -MotionB
 
 After that, MotionBuilder starts the bridge automatically on launch, registers
 `MotionBuilderBridge Control Panel` under `Python Tools`, and opens the control
-panel. No administrator rights are required for `-Scope User`.
+panel. No administrator rights are required for `-Scope User`. The user-level
+installer writes the loader to the common Documents and AppData startup folders
+because different MoBu installs resolve their user startup path differently.
 
 Manual fallback: open MotionBuilder's Python Shell and run:
 

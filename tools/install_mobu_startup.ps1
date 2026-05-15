@@ -23,8 +23,18 @@ function Get-StartupTargets {
     $targets = @()
     if ($TargetScope -in @("User", "All")) {
         $targets += [PSCustomObject]@{
-            Scope = "User"
+            Scope = "UserDocumentsVersioned"
             Path = Join-Path $env:USERPROFILE "Documents\MB\$Version\config\PythonStartup"
+            RequiresAdmin = $false
+        }
+        $targets += [PSCustomObject]@{
+            Scope = "UserRoaming"
+            Path = Join-Path $env:APPDATA "Autodesk\MotionBuilder\config\PythonStartup"
+            RequiresAdmin = $false
+        }
+        $targets += [PSCustomObject]@{
+            Scope = "UserDocumentsGlobal"
+            Path = Join-Path $env:USERPROFILE "Documents\MB\PythonStartup"
             RequiresAdmin = $false
         }
     }

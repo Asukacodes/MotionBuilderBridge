@@ -55,10 +55,13 @@ Optional:
 powershell -ExecutionPolicy Bypass -File tools\install_mobu_startup.ps1 -MotionBuilderVersion 2024 -Scope User -AutoStartBridge -OpenPanel
 ```
 
-This writes:
+This writes user startup loaders to the common MotionBuilder user startup
+locations:
 
 ```text
 C:\Users\<user>\Documents\MB\2024\config\PythonStartup\MotionBuilderBridge_startup.py
+C:\Users\<user>\AppData\Roaming\Autodesk\MotionBuilder\config\PythonStartup\MotionBuilderBridge_startup.py
+C:\Users\<user>\Documents\MB\PythonStartup\MotionBuilderBridge_startup.py
 ```
 
 Flags:
